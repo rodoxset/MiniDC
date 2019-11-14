@@ -18,6 +18,9 @@
         line: SERVIDOR ANSIBLE CONTROLLER
         create: yes
 
+
+## INSTALANDO E CONFIGURANDO MAQUINA BANCO  
+
 #DATABASE
 - hosts: database
   remote_user: vagrant
@@ -28,13 +31,48 @@
         path: /tmp/info
         line: SERVIDOR DE BANCO DE DADOS MYSQL
         create: yes
-        
+
+    - name: Definindo a Senha de Administrador do MySQL
+      debconf: name='mysql-server' question='mysql-server/root_password' value='123' vtype='password'
+
+    - name: Confirmando a Senha de Administrador do MySQL
+      debconf: name='mysql-server' question='mysql-server/root_password_again' value='123' vtype='password'
+
     - name: Instalação do MYSQL servidor banco de dados
       apt: 
-        state: present 
+        state: present
+        update_cache: yes
         pkg:
           - mysql-server
-              
+          - python-pymysql
+
+    - name: Criando a Base de Dados
+      mysql_db:
+        name: wordpress
+        state: present
+        login_user: root
+        login_password: 123        
+          
+    - name: Criando o usuário do Banco
+      mysql_user:
+        name: wordpress
+        password: impacta
+        priv: '*.*:ALL'
+        state: present
+        host: 172.17.177.22
+        login_user: root
+        login_password: 123
+
+    - name: Liberando o MySQL para Conexões Remotas
+      lineinfile:
+        path: /etc/mysql/mysql.conf.d/mysqld.cnf
+        regexp: '^bind-address'
+        line: bind-address  =  0.0.0.0
+      notify:
+        - restart mysql      
+        
+
+## INSTALANDO E CONFIGURANDO MAQUINA BLOG  
 
 #WEBSERVERS
 - hosts: webservers
@@ -65,8 +103,18 @@
           - libapache2-mod-php 
           - php-mysql
           - php-cli
+          - mysql-client
  
- 
+  handlers:
+    - name: restart apache
+      service:
+        name: apache2
+        state: restarted
+
+    - name: restart mysql
+      service:
+        name: mysql
+        state: restarted 
  
 
 
